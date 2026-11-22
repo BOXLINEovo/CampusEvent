@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>活动列表 - CampusEvent</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<nav>
+    <a href="/">首页</a>
+    <a href="/my/registrations">我的报名</a>
+    <a href="/notifications">站内通知</a>
+    <a href="/admin/activities">活动管理</a>
+    <a href="/admin/approvals">待审核</a>
+    <a href="/admin/statistics">统计</a>
+</nav>
+
+<h1>活动列表</h1>
+<p class="muted">浏览活动、查看剩余名额并报名。</p>
+
+<form class="filter-form" method="get" action="/activities">
+    <label for="keyword">按名称筛选</label>
+    <input id="keyword" type="text" name="keyword" th:value="${keyword}" placeholder="输入活动名称关键词">
+    <div class="actions">
+        <button type="submit">筛选</button>
+        <a class="btn btn-secondary" href="/activities">清空</a>
+    </div>
+</form>
+
+<div class="table-wrap">
+    <table>
+        <thead>
+        <tr>
+            <th>名称</th>
+            <th>类型</th>
+            <th>开始时间</th>
+            <th>地点</th>
+            <th>已通过 / 容量</th>
+            <th>待审核</th>
+            <th>剩余</th>
+            <th>报名方式</th>
+            <th></th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="view : ${activities}">
+            <td th:text="${view.activity.title}"></td>
+            <td th:text="${view.activity.category}"></td>
+            <td th:text="${view.activity.startAt}"></td>
+            <td th:text="${view.activity.location}"></td>
+            <td>
+                <span th:text="${view.statistics != null ? view.statistics.approvedCount : 0}"></span>
+                /
+                <span th:text="${view.activity.capacity}"></span>
+            </td>
+            <td th:text="${view.statistics != null ? view.statistics.pendingCount : 0}"></td>
+            <td th:text="${view.statistics != null ? view.statistics.remainingCapacity : view.activity.capacity}"></td>
+            <td th:text="${view.activity.policyType}"></td>
+            <td><a th:href="@{/activities/{id}(id=${view.activity.activityId})}">详情</a></td>
+        </tr>
+        <tr th:if="${#lists.isEmpty(activities)}">
+            <td colspan="9" class="muted">暂无活动</td>
+        </tr>
+        </tbody>
+    </table>
+</div>
+</body>
+</html>

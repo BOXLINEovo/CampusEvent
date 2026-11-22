@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>统计 - CampusEvent</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<nav>
+    <a href="/">首页</a>
+    <a href="/admin/activities">活动管理</a>
+    <a href="/admin/approvals">待审核</a>
+</nav>
+
+<h1>活动统计</h1>
+<div class="table-wrap">
+    <table>
+        <thead>
+        <tr><th>活动</th><th>已通过</th><th>待审核</th><th>剩余名额</th></tr>
+        </thead>
+        <tbody>
+        <tr th:each="view : ${statistics}">
+            <td th:text="${view.activityTitle}"></td>
+            <td th:text="${view.statistics.approvedCount}"></td>
+            <td th:text="${view.statistics.pendingCount}"></td>
+            <td th:text="${view.statistics.remainingCapacity}"></td>
+        </tr>
+        <tr th:if="${#lists.isEmpty(statistics)}">
+            <td colspan="4" class="muted">暂无数据</td>
+        </tr>
+        </tbody>
+    </table>
+</div>
+</body>
+</html>

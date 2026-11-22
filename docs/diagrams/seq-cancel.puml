@@ -1,0 +1,63 @@
+@startuml
+autonumber
+skinparam shadowing false
+
+actor "学生" as Student
+participant "RegistrationService" as RegSvc
+database "RegistrationRepository" as RegRepo
+database "ActivityRepository" as ActivityRepo
+participant "RegistrationEventPublisher\n(OutboxEventPublisher)" as Publisher
+database "OutboxRepository" as OutboxRepo
+participant "EventDispatcher" as Dispatcher
+participant "NotificationService\n(InSiteNotificationService)" as Notif
+
+Student -> RegSvc : cancel(studentId, registrationId)
+activate RegSvc
+
+group business transaction (REQUIRED)
+  note over RegSvc : BEGIN
+  RegSvc -> RegRepo : findById(registrationId)
+  RegRepo --> RegSvc : registration
+
+  alt registration missing
+    RegSvc --> Student : RegistrationNotFound
+    note over RegSvc : ROLLBACK
+  else not owner
+    RegSvc --> Student : NotRegistrationOwner
+    note over RegSvc : ROLLBACK
+  else status not in {PENDING, APPROVED}
+    RegSvc --> Student : InvalidRegistrationState
+    note over RegSvc : ROLLBACK
+  else cancellable
+    RegSvc -> ActivityRepo : findById(registration.activityId)
+    ActivityRepo --> RegSvc : activity (for title snapshot)
+    RegSvc -> RegRepo : updateStatusIfCurrent(id, registration.status, CANCELLED, now)
+    RegRepo --> RegSvc : updated?
+
+    alt true
+      RegSvc -> Publisher : publish(RegistrationCancelled)
+      Publisher -> OutboxRepo : save(OutboxEvent PENDING)
+      OutboxRepo --> Publisher : ok
+      note over RegSvc : COMMIT
+      note over RegSvc : if previous status = APPROVED,\ncapacity is released by count(APPROVED) decreasing
+      RegSvc --> Student : ok
+    else false
+      RegSvc --> Student : ConcurrentStateChange
+      note over RegSvc : ROLLBACK; no event
+    end
+  end
+end
+
+deactivate RegSvc
+
+group post-commit dispatch (no MQ)
+  note over Dispatcher : after commit
+  Dispatcher -> OutboxRepo : findPending()
+  OutboxRepo --> Dispatcher : event
+  Dispatcher -> OutboxRepo : markProcessing(eventId)
+  Dispatcher -> Notif : onEvent(CANCELLED)
+  Notif --> Dispatcher : skip (M-06=A)
+  Dispatcher -> OutboxRepo : markSent(eventId)
+end
+
+@enduml

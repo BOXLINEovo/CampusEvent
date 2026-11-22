@@ -1,0 +1,50 @@
+@startuml
+left to right direction
+skinparam packageStyle rectangle
+skinparam shadowing false
+
+actor "学生" as Student
+actor "校园管理员" as Admin
+
+rectangle "CampusEvent 校园活动报名与管理系统" {
+  usecase "UC-01\n创建活动" as UC01
+  usecase "UC-02\n编辑活动" as UC02
+  usecase "UC-03\n删除活动" as UC03
+  usecase "UC-04\n浏览活动" as UC04
+  usecase "UC-05\n按名称筛选活动" as UC05
+  usecase "UC-06\n报名（直接型）" as UC06
+  usecase "UC-07\n报名（审核型）" as UC07
+  usecase "UC-08\n取消报名" as UC08
+  usecase "UC-09\n审批批准" as UC09
+  usecase "UC-10\n审批拒绝" as UC10
+  usecase "UC-11\n查看统计" as UC11
+  usecase "UC-12\n查看站内通知" as UC12
+}
+
+Admin --> UC01
+Admin --> UC02
+Admin --> UC03
+Admin --> UC09
+Admin --> UC10
+Admin --> UC11
+
+Student --> UC04
+Student --> UC05
+Student --> UC06
+Student --> UC07
+Student --> UC08
+Student --> UC12
+
+UC05 ..> UC04 : <<extend>>\n扩展点：筛选条件
+
+note bottom of UC06
+  UC-06 与 UC-07 由活动的 policy_type 决定；
+  学生不手工选择报名类型。
+end note
+
+note bottom of UC11
+  P2-F08 只要求已通过数、待审核数、剩余名额；
+  仅管理员可见（M-08=A）。
+end note
+
+@enduml

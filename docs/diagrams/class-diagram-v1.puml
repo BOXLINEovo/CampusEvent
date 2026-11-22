@@ -1,0 +1,399 @@
+@startuml
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+skinparam shadowing false
+hide empty members
+
+package "domain" {
+  class Student {
+    - studentId: String
+    - name: String
+    + getId(): String
+  }
+
+  class Activity {
+    - activityId: String
+    - title: String
+    - category: String
+    - startAt: DateTime
+    - location: String
+    - capacity: int
+    - policyType: PolicyType
+    - deletedAt: DateTime
+    + isDeleted(): boolean
+    + hasStarted(now: DateTime): boolean
+    + isOpenForRegistration(now: DateTime): boolean
+    + canReduceCapacityTo(newCapacity: int, approvedCount: int): boolean
+  }
+
+  class Registration {
+    - registrationId: String
+    - activityId: String
+    - studentId: String
+    - status: RegistrationStatus
+    - createdAt: DateTime
+    - updatedAt: DateTime
+    + approve(now: DateTime): void
+    + reject(now: DateTime): void
+    + cancel(now: DateTime): void
+    + isActive(): boolean
+  }
+
+  enum RegistrationStatus {
+    PENDING
+    APPROVED
+    REJECTED
+    CANCELLED
+  }
+
+  enum PolicyType {
+    DIRECT
+    REVIEW
+  }
+
+  class Message {
+    - messageId: String
+    - studentId: String
+    - activityId: String
+    - sourceEventId: String
+    - type: NotificationType
+    - title: String
+    - content: String
+    - createdAt: DateTime
+    - isRead: boolean
+    - readAt: DateTime
+    + markRead(now: DateTime): void
+  }
+
+  enum NotificationType {
+    REGISTRATION_SUCCESS
+    REGISTRATION_APPROVED
+    REGISTRATION_REJECTED
+  }
+}
+
+package "application" {
+  class ActivityService {
+    - activityRepo: ActivityRepository
+    - registrationRepo: RegistrationRepository
+    + create(...): Activity
+    + update(...): Activity
+    + softDelete(activityId: String): void
+    + listVisible(keyword: String): Activity[]
+    + getDetail(activityId: String): Activity
+  }
+
+  class RegistrationService {
+    - activityRepo: ActivityRepository
+    - registrationRepo: RegistrationRepository
+    - policyFactory: RegistrationPolicyFactory
+    - capacityRule: CapacityRule
+    - eventPublisher: RegistrationEventPublisher
+    + register(studentId: String, activityId: String): RegistrationResult
+    + cancel(studentId: String, registrationId: String): void
+    + approve(registrationId: String): Registration
+    + reject(registrationId: String, reason: String): Registration
+    + listByStudent(studentId: String): Registration[]
+    + listPendingByActivity(activityId: String): Registration[]
+  }
+
+  class StatisticsService {
+    - activityRepo: ActivityRepository
+    - registrationRepo: RegistrationRepository
+    + getActivityStatistics(activityId: String): ActivityStatistics
+    + getAll(): ActivityStatistics[]
+  }
+
+  class ActivityStatistics {
+    - activityId: String
+    - approvedCount: int
+    - pendingCount: int
+    - remainingCapacity: int
+  }
+
+  class RegistrationResult {
+    - registration: Registration
+    - warning: String
+    + hasWarning(): boolean
+    + getWarning(): String
+  }
+
+  class CapacityDecision {
+    - allowed: boolean
+    - warning: boolean
+    - message: String
+    + isAllowed(): boolean
+    + isWarning(): boolean
+    + getMessage(): String
+  }
+
+  interface CapacityRule {
+    + checkSubmission(activity: Activity, approvedCount: int, initialStatus: RegistrationStatus): CapacityDecision
+    + checkApproval(activity: Activity, approvedCount: int): CapacityDecision
+  }
+
+  class DefaultCapacityRule
+
+  interface RegistrationPolicy {
+    + initialStatus(activity: Activity): RegistrationStatus
+    + requiresApproval(): boolean
+  }
+
+  class DirectRegistrationPolicy
+  class ReviewRegistrationPolicy
+
+  class RegistrationPolicyFactory {
+    + create(type: PolicyType): RegistrationPolicy
+  }
+}
+
+package "ports" {
+  interface ActivityRepository {
+    + findById(id: String): Activity
+    + findByIdForUpdate(id: String): Activity
+    + save(activity: Activity): void
+    + findVisible(keyword: String): Activity[]
+  }
+
+  interface RegistrationRepository {
+    + findById(id: String): Registration
+    + insert(registration: Registration): void
+    + updateStatusIfCurrent(id: String, expected: RegistrationStatus, target: RegistrationStatus, now: DateTime): boolean
+    + findActiveBy(activityId: String, studentId: String): Registration
+    + countApproved(activityId: String): int
+    + findPendingByActivity(activityId: String): Registration[]
+    + findByStudent(studentId: String): Registration[]
+  }
+
+  interface MessageRepository {
+    + save(message: Message): void
+    + findByStudent(studentId: String): Message[]
+    + markRead(messageId: String, studentId: String): void
+    + existsBySourceEventId(eventId: String): boolean
+    + countUnread(studentId: String): int
+  }
+
+  interface OutboxRepository {
+    + save(event: OutboxEvent): void
+    + findPending(limit: int): OutboxEvent[]
+    + markProcessing(eventId: String): boolean
+    + markSent(eventId: String): void
+    + markFailed(eventId: String, reason: String): void
+  }
+
+  interface RegistrationEventPublisher {
+    + publish(event: RegistrationEvent): void
+  }
+
+  interface RegistrationEventObserver {
+    + onEvent(event: RegistrationEvent): void
+  }
+}
+
+package "notification" {
+  class RegistrationEvent {
+    - eventId: String
+    - schemaVersion: int
+    - type: RegistrationEventType
+    - registrationId: String
+    - activityId: String
+    - studentId: String
+    - policyType: PolicyType
+    - fromStatus: RegistrationStatus
+    - toStatus: RegistrationStatus
+    - actorId: String
+    - actorRole: ActorRole
+    - reason: String
+    - activityTitle: String
+    - studentName: String
+    - occurredAt: DateTime
+  }
+
+  enum ActorRole {
+    STUDENT
+    ADMIN
+  }
+
+  enum RegistrationEventType {
+    REGISTERED
+    SUBMITTED
+    APPROVED
+    REJECTED
+    CANCELLED
+  }
+
+  class OutboxEvent {
+    - eventId: String
+    - type: RegistrationEventType
+    - payload: String
+    - status: OutboxStatus
+    - retryCount: int
+    - nextAttemptAt: DateTime
+    - lastError: String
+    - createdAt: DateTime
+  }
+
+  enum OutboxStatus {
+    PENDING
+    PROCESSING
+    SENT
+    FAILED
+  }
+
+  class OutboxEventPublisher {
+    - outboxRepo: OutboxRepository
+    + publish(event: RegistrationEvent): void
+  }
+
+  class EventDispatcher {
+    - outboxRepo: OutboxRepository
+    - observers: RegistrationEventObserver[]
+    + dispatchPending(): void
+  }
+
+  interface NotificationService {
+    + onEvent(event: RegistrationEvent): void
+    + listByStudent(studentId: String): Message[]
+    + markRead(messageId: String, studentId: String): void
+    + unreadCount(studentId: String): int
+  }
+
+  class InSiteNotificationService {
+    - messageRepo: MessageRepository
+    + onEvent(event: RegistrationEvent): void
+    + listByStudent(studentId: String): Message[]
+    + markRead(messageId: String, studentId: String): void
+    + unreadCount(studentId: String): int
+  }
+}
+
+' ---------- domain associations ----------
+Student "1" -- "0..*" Registration : submits
+Activity "1" -- "0..*" Registration : relates
+Student "1" -- "0..*" Message : receives
+Activity "1" -- "0..*" Message : relates
+
+Registration --> RegistrationStatus
+Activity --> PolicyType
+
+' ---------- application dependencies ----------
+ActivityService --> ActivityRepository
+ActivityService --> RegistrationRepository
+RegistrationService --> ActivityRepository
+RegistrationService --> RegistrationRepository
+RegistrationService --> RegistrationPolicyFactory
+RegistrationService --> CapacityRule
+RegistrationService --> RegistrationEventPublisher
+RegistrationService ..> Registration : creates/loads
+RegistrationService ..> Activity : reads
+RegistrationService ..> RegistrationResult
+RegistrationService ..> CapacityDecision
+
+StatisticsService --> ActivityRepository
+StatisticsService --> RegistrationRepository
+StatisticsService ..> ActivityStatistics
+
+RegistrationPolicyFactory ..> RegistrationPolicy
+CapacityRule ..> CapacityDecision
+CapacityRule <|.. DefaultCapacityRule
+RegistrationPolicy <|.. DirectRegistrationPolicy
+RegistrationPolicy <|.. ReviewRegistrationPolicy
+
+' ---------- notification / outbox ----------
+OutboxEventPublisher ..|> RegistrationEventPublisher
+OutboxEventPublisher --> OutboxRepository
+EventDispatcher --> OutboxRepository
+EventDispatcher --> RegistrationEventObserver
+NotificationService --|> RegistrationEventObserver
+NotificationService <|.. InSiteNotificationService
+InSiteNotificationService --> MessageRepository
+
+RegistrationEventPublisher ..> RegistrationEvent
+RegistrationEventObserver ..> RegistrationEvent
+NotificationService ..> RegistrationEvent
+NotificationService ..> Message
+InSiteNotificationService ..> Message : creates
+OutboxEvent ..> RegistrationEvent : serialized payload
+
+Message --> NotificationType
+RegistrationEvent --> PolicyType
+RegistrationEvent --> RegistrationStatus
+RegistrationEvent --> ActorRole
+
+' ---------- notes ----------
+note right of RegistrationService
+  D4-01 = C (public rule + minimal policy):
+  submit -> capacityRule.checkSubmission(...)
+  approve -> capacityRule.checkApproval(...)
+  Service owns the transaction; the rule is pure.
+end note
+
+note bottom of CapacityRule
+  checkSubmission uses initialStatus:
+  APPROVED + full -> reject;
+  PENDING + full -> allow with warning (M-04=A).
+  checkApproval is the hard invariant (C8/M-05=A).
+end note
+
+note bottom of RegistrationPolicy
+  Policy only decides initial status / approval requirement.
+  It does not check capacity (D4-01=C).
+end note
+
+note bottom of CapacityDecision
+  allowed=false -> reject submission/approval;
+  allowed=true + warning=true -> allow with message.
+end note
+
+note bottom of Registration
+  Status transitions are guarded by entity methods;
+  illegal transitions raise a domain exception.
+end note
+
+note bottom of Activity
+  Soft-deleted activities are hidden from student lists and statistics.
+  Soft delete is rejected while PENDING registrations exist.
+end note
+
+note bottom of Student
+  Associations are conceptual; entities reference each other by ID,
+  not by object navigation.
+end note
+
+note bottom of Message
+  sourceEventId is an internal dedup key;
+  unique (sourceEventId, studentId).
+  readAt is set when the student opens the message.
+end note
+
+note bottom of NotificationService
+  Handles only REGISTERED / APPROVED / REJECTED.
+  SUBMITTED / CANCELLED are skipped (M-06=A).
+end note
+
+note bottom of RegistrationEvent
+  fromStatus and reason may be null.
+  activityTitle is a snapshot; studentName is optional
+  (current templates use "你").
+end note
+
+note bottom of OutboxEvent
+  payload serializes RegistrationEvent.
+  eventId is unique; status: PENDING -> PROCESSING -> SENT/FAILED.
+end note
+
+note bottom of OutboxEventPublisher
+  Writes the outbox row in the same transaction as the registration.
+  No message queue is used.
+end note
+
+note bottom of RegistrationStatus
+  PENDING=待审核, APPROVED=已通过,
+  REJECTED=已拒绝, CANCELLED=已取消
+end note
+
+note bottom of PolicyType
+  DIRECT=直接型, REVIEW=审核型
+end note
+
+@enduml

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>活动表单 - CampusEvent</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body class="narrow">
+<nav>
+    <a href="/">首页</a>
+    <a href="/admin/activities">活动管理</a>
+</nav>
+
+<h1 th:text="${editing ? '编辑活动' : '新建活动'}"></h1>
+<div class="msg err" th:if="${error}" th:text="${error}"></div>
+
+<form th:object="${activityForm}" th:action="${formAction}" method="post">
+    <label for="title">名称</label>
+    <input id="title" type="text" th:field="*{title}" maxlength="200" required>
+
+    <label for="category">类型</label>
+    <input id="category" type="text" th:field="*{category}" maxlength="60" required>
+
+    <label for="startAt">开始时间</label>
+    <input id="startAt" type="datetime-local" th:field="*{startAt}" required>
+
+    <label for="location">地点</label>
+    <input id="location" type="text" th:field="*{location}" maxlength="200" required>
+
+    <label for="capacity">容量</label>
+    <input id="capacity" type="number" th:field="*{capacity}" min="1" required>
+
+    <label for="policyType">报名方式</label>
+    <select id="policyType" th:field="*{policyType}">
+        <option th:each="type : ${policyTypes}" th:value="${type}" th:text="${type}"></option>
+    </select>
+
+    <div class="actions">
+        <button type="submit">保存</button>
+        <a class="btn btn-secondary" href="/admin/activities">取消</a>
+    </div>
+</form>
+</body>
+</html>

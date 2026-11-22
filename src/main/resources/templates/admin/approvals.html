@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>待审核 - CampusEvent</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<nav>
+    <a href="/">首页</a>
+    <a href="/admin/activities">活动管理</a>
+    <a href="/admin/statistics">统计</a>
+</nav>
+
+<h1>待审核报名</h1>
+<div class="msg ok" th:if="${message}" th:text="${message}"></div>
+<div class="msg err" th:if="${error}" th:text="${error}"></div>
+
+<div class="table-wrap">
+    <table>
+        <thead>
+        <tr><th>活动</th><th>学生 ID</th><th>创建时间</th><th>操作</th></tr>
+        </thead>
+        <tbody>
+        <tr th:each="view : ${pending}">
+            <td th:text="${view.activityTitle}"></td>
+            <td th:text="${view.registration.studentId}"></td>
+            <td th:text="${view.registration.createdAt}"></td>
+            <td>
+                <div class="actions">
+                    <form class="inline" th:action="@{/admin/registrations/{id}/approve(id=${view.registration.registrationId})}" method="post">
+                        <button type="submit">批准</button>
+                    </form>
+                    <form class="inline" th:action="@{/admin/registrations/{id}/reject(id=${view.registration.registrationId})}" method="post">
+                        <input type="text" name="reason" placeholder="拒绝理由（选填）">
+                        <button class="btn-danger" type="submit">拒绝</button>
+                    </form>
+                </div>
+            </td>
+        </tr>
+        <tr th:if="${#lists.isEmpty(pending)}">
+            <td colspan="4" class="muted">暂无待审核报名</td>
+        </tr>
+        </tbody>
+    </table>
+</div>
+</body>
+</html>

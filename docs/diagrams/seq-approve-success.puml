@@ -1,0 +1,78 @@
+@startuml
+autonumber
+skinparam shadowing false
+
+actor "校园管理员" as Admin
+participant "RegistrationService" as RegSvc
+database "RegistrationRepository" as RegRepo
+database "ActivityRepository" as ActivityRepo
+participant "CapacityRule" as Capacity
+participant "RegistrationEventPublisher\n(OutboxEventPublisher)" as Publisher
+database "OutboxRepository" as OutboxRepo
+participant "EventDispatcher" as Dispatcher
+participant "NotificationService\n(InSiteNotificationService)" as Notif
+database "MessageRepository" as MsgRepo
+
+Admin -> RegSvc : approve(registrationId)
+activate RegSvc
+
+group business transaction (REQUIRED)
+  note over RegSvc : BEGIN
+  RegSvc -> RegRepo : findById(registrationId)
+  RegRepo --> RegSvc : registration
+
+  alt registration missing / status != PENDING
+    RegSvc --> Admin : RegistrationNotFound / InvalidRegistrationState
+    note over RegSvc : ROLLBACK
+  else registration PENDING
+    RegSvc -> ActivityRepo : findById(registration.activityId)
+    ActivityRepo --> RegSvc : activity
+
+    alt activity missing / deleted / started
+      RegSvc --> Admin : ActivityNotFound / ActivityNotOpen
+      note over RegSvc : ROLLBACK
+    else activity open
+      RegSvc -> RegRepo : countApproved(activityId)
+      RegRepo --> RegSvc : approvedCount
+      RegSvc -> Capacity : checkApproval(activity, approvedCount)
+      Capacity --> RegSvc : CapacityDecision
+
+      alt not allowed (full)
+        RegSvc --> Admin : CapacityExceeded(decision.message)
+        note over RegSvc : no state change; registration stays PENDING
+      else allowed
+        RegSvc -> RegRepo : updateStatusIfCurrent(id, PENDING, APPROVED, now)
+        RegRepo --> RegSvc : updated?
+
+        alt true
+          RegSvc -> Publisher : publish(RegistrationApproved)
+          Publisher -> OutboxRepo : save(OutboxEvent PENDING)
+          OutboxRepo --> Publisher : ok
+          note over RegSvc : COMMIT
+          RegSvc --> Admin : registration
+        else false
+          RegSvc --> Admin : ConcurrentStateChange
+          note over RegSvc : ROLLBACK; no event
+        end
+      end
+    end
+  end
+end
+
+deactivate RegSvc
+
+group post-commit dispatch (no MQ)
+  note over Dispatcher : after commit
+  Dispatcher -> OutboxRepo : findPending()
+  OutboxRepo --> Dispatcher : event
+  Dispatcher -> OutboxRepo : markProcessing(eventId)
+  Dispatcher -> Notif : onEvent(APPROVED)
+  Notif -> MsgRepo : existsBySourceEventId(eventId)
+  MsgRepo --> Notif : false
+  Notif -> MsgRepo : save(Message)
+  MsgRepo --> Notif : ok
+  Notif --> Dispatcher : ok
+  Dispatcher -> OutboxRepo : markSent(eventId)
+end
+
+@enduml

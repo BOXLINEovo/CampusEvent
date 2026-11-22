@@ -1,0 +1,68 @@
+@startuml
+autonumber
+skinparam shadowing false
+
+actor "学生" as Student
+participant "RegistrationService" as RegSvc
+database "ActivityRepository" as ActivityRepo
+database "RegistrationRepository" as RegRepo
+participant "RegistrationPolicyFactory" as PolicyFactory
+participant "RegistrationPolicy" as Policy
+participant "CapacityRule" as Capacity
+participant "RegistrationEventPublisher\n(OutboxEventPublisher)" as Publisher
+database "OutboxRepository" as OutboxRepo
+participant "EventDispatcher" as Dispatcher
+participant "NotificationService\n(InSiteNotificationService)" as Notif
+
+Student -> RegSvc : register(studentId, activityId)
+activate RegSvc
+
+group business transaction (REQUIRED)
+  note over RegSvc : BEGIN
+  RegSvc -> ActivityRepo : findById(activityId)
+  ActivityRepo --> RegSvc : activity
+
+  alt activity missing / deleted / started
+    RegSvc --> Student : ActivityNotFound / ActivityNotOpen
+    note over RegSvc : ROLLBACK
+  else activity open
+    RegSvc -> RegRepo : findActiveBy(activityId, studentId)
+    RegRepo --> RegSvc : existing?
+
+    alt existing active registration
+      RegSvc --> Student : DuplicateActiveRegistration
+      note over RegSvc : ROLLBACK
+    else no duplicate
+      RegSvc -> PolicyFactory : create(activity.policyType)
+      PolicyFactory --> RegSvc : policy
+      RegSvc -> Policy : initialStatus(activity)
+      Policy --> RegSvc : PENDING
+      RegSvc -> RegRepo : countApproved(activityId)
+      RegRepo --> RegSvc : approvedCount
+      RegSvc -> Capacity : checkSubmission(activity, approvedCount, PENDING)
+      Capacity --> RegSvc : CapacityDecision (allowed=true, warning?)
+
+      RegSvc -> RegRepo : insert(Registration PENDING)
+      RegRepo --> RegSvc : saved
+      RegSvc -> Publisher : publish(ReviewRegistrationSubmitted)
+      Publisher -> OutboxRepo : save(OutboxEvent PENDING)
+      OutboxRepo --> Publisher : ok
+      note over RegSvc : COMMIT
+      RegSvc --> Student : RegistrationResult(registration, decision.message)
+    end
+  end
+end
+
+deactivate RegSvc
+
+group post-commit dispatch (no MQ)
+  note over Dispatcher : after commit
+  Dispatcher -> OutboxRepo : findPending()
+  OutboxRepo --> Dispatcher : event
+  Dispatcher -> OutboxRepo : markProcessing(eventId)
+  Dispatcher -> Notif : onEvent(SUBMITTED)
+  Notif --> Dispatcher : skip (M-06=A)
+  Dispatcher -> OutboxRepo : markSent(eventId)
+end
+
+@enduml

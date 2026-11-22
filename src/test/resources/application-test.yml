@@ -1,0 +1,17 @@
+spring:
+  datasource:
+    url: ${TEST_DB_URL:jdbc:postgresql://localhost:5432/campusevent_test}
+    username: ${TEST_DB_USER:campusevent}
+    password: ${TEST_DB_PASSWORD:campusevent}
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+  thymeleaf:
+    cache: false

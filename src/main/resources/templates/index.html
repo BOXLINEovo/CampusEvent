@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CampusEvent</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<div class="card">
+    <h1>CampusEvent</h1>
+    <p class="muted">校园活动报名与管理系统 · 初始功能实现</p>
+    <div class="actions">
+        <a class="btn" href="/activities">活动列表</a>
+        <a class="btn btn-secondary" href="/my/registrations">我的报名</a>
+        <a class="btn btn-secondary" href="/notifications">站内通知</a>
+    </div>
+    <div class="actions">
+        <a class="btn btn-secondary" href="/admin/activities">活动管理</a>
+        <a class="btn btn-secondary" href="/admin/approvals">待审核</a>
+        <a class="btn btn-secondary" href="/admin/statistics">统计</a>
+    </div>
+    <p class="muted">健康检查：<a href="/health">/health</a></p>
+    <p class="muted">当前为固定演示账号，没有真实登录/权限系统。</p>
+</div>
+</body>
+</html>

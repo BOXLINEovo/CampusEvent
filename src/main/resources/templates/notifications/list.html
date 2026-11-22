@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>站内通知 - CampusEvent</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<nav>
+    <a href="/">首页</a>
+    <a href="/activities">活动列表</a>
+    <a href="/my/registrations">我的报名</a>
+</nav>
+
+<h1>站内通知</h1>
+<p class="muted">未读数：<span th:text="${unread}"></span></p>
+<div class="msg ok" th:if="${message}" th:text="${message}"></div>
+<div class="msg err" th:if="${error}" th:text="${error}"></div>
+
+<div class="table-wrap">
+    <table>
+        <thead>
+        <tr><th>类型</th><th>标题</th><th>内容</th><th>时间</th><th>状态</th></tr>
+        </thead>
+        <tbody>
+        <tr th:each="msg : ${messages}">
+            <td th:text="${msg.type}"></td>
+            <td th:text="${msg.title}"></td>
+            <td th:text="${msg.content}"></td>
+            <td th:text="${msg.createdAt}"></td>
+            <td>
+                <span th:if="${msg.read}" class="muted">已读</span>
+                <form class="inline" th:unless="${msg.read}" th:action="@{/notifications/{id}/read(id=${msg.messageId})}" method="post">
+                    <button class="btn-secondary" type="submit">标记已读</button>
+                </form>
+            </td>
+        </tr>
+        <tr th:if="${#lists.isEmpty(messages)}">
+            <td colspan="5" class="muted">暂无通知</td>
+        </tr>
+        </tbody>
+    </table>
+</div>
+</body>
+</html>

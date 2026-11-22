@@ -1,0 +1,44 @@
+@startuml
+autonumber
+skinparam shadowing false
+
+actor "校园管理员" as Admin
+participant "RegistrationService" as RegSvc
+database "RegistrationRepository" as RegRepo
+database "ActivityRepository" as ActivityRepo
+participant "CapacityRule" as Capacity
+
+Admin -> RegSvc : approve(registrationId)
+activate RegSvc
+
+group business transaction (REQUIRED)
+  note over RegSvc : BEGIN
+  RegSvc -> RegRepo : findById(registrationId)
+  RegRepo --> RegSvc : registration (PENDING)
+
+  alt registration missing / status != PENDING
+    RegSvc --> Admin : RegistrationNotFound / InvalidRegistrationState
+    note over RegSvc : ROLLBACK
+  else registration PENDING
+    RegSvc -> ActivityRepo : findById(registration.activityId)
+    ActivityRepo --> RegSvc : activity
+
+    alt activity missing / deleted / started
+      RegSvc --> Admin : ActivityNotFound / ActivityNotOpen
+      note over RegSvc : ROLLBACK
+    else activity open
+      RegSvc -> RegRepo : countApproved(activityId)
+      RegRepo --> RegSvc : approvedCount
+      RegSvc -> Capacity : checkApproval(activity, approvedCount)
+      Capacity --> RegSvc : CapacityDecision(allowed=false)
+
+      RegSvc --> Admin : CapacityExceeded(decision.message)
+      note over RegSvc : no registration change; no outbox event\nregistration remains PENDING (M-05=A)
+      note over RegSvc : return failure; admin may reject or wait for a cancellation
+    end
+  end
+end
+
+deactivate RegSvc
+
+@enduml

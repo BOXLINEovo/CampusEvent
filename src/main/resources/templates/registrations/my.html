@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我的报名 - CampusEvent</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<nav>
+    <a href="/">首页</a>
+    <a href="/activities">活动列表</a>
+    <a href="/notifications">站内通知</a>
+</nav>
+
+<h1>我的报名</h1>
+<p class="muted">查看报名状态；待审核和已通过的报名可以取消。</p>
+
+<div class="msg ok" th:if="${message}" th:text="${message}"></div>
+<div class="msg err" th:if="${error}" th:text="${error}"></div>
+
+<div class="table-wrap">
+    <table>
+        <thead>
+        <tr><th>活动</th><th>状态</th><th>创建时间</th><th>操作</th></tr>
+        </thead>
+        <tbody>
+        <tr th:each="view : ${registrations}">
+            <td th:text="${view.activityTitle}"></td>
+            <td th:text="${view.registration.status}"></td>
+            <td th:text="${view.registration.createdAt}"></td>
+            <td>
+                <form class="inline" th:if="${view.registration.active}"
+                      th:action="@{/registrations/{id}/cancel(id=${view.registration.registrationId})}"
+                      method="post">
+                    <button class="btn-danger" type="submit" onclick="return confirm('确认取消报名？')">取消</button>
+                </form>
+            </td>
+        </tr>
+        <tr th:if="${#lists.isEmpty(registrations)}">
+            <td colspan="4" class="muted">暂无报名</td>
+        </tr>
+        </tbody>
+    </table>
+</div>
+</body>
+</html>

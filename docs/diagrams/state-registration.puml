@@ -1,0 +1,27 @@
+@startuml
+skinparam shadowing false
+hide empty description
+
+state "待审核" as Pending
+state "已通过" as Approved
+state "已拒绝" as Rejected
+state "已取消" as Cancelled
+
+[*] --> Pending : 审核型报名\n[活动未开始 && 无重复有效报名]
+[*] --> Approved : 直接型报名\n[活动未开始 && 无重复有效报名 && 名额充足]
+
+Pending --> Approved : 批准\n[活动未开始 && 名额充足]
+Pending --> Rejected : 拒绝\n[管理员操作]
+Pending --> Cancelled : 学生取消\n[本人操作]
+Approved --> Cancelled : 学生取消\n[本人操作]
+
+Rejected --> [*]
+Cancelled --> [*]
+
+note right of Pending
+  活动开始不自动转换状态；
+  开始后不能批准，但仍可拒绝
+  或由学生取消（M-03=C）。
+end note
+
+@enduml

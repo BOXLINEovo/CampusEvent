@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>活动详情 - CampusEvent</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<nav>
+    <a href="/">首页</a>
+    <a href="/activities">活动列表</a>
+    <a href="/my/registrations">我的报名</a>
+    <a href="/notifications">站内通知</a>
+</nav>
+
+<h1 th:text="${activity.title}"></h1>
+
+<div class="msg ok" th:if="${message}" th:text="${message}"></div>
+<div class="msg warn" th:if="${warning}" th:text="${warning}"></div>
+<div class="msg err" th:if="${error}" th:text="${error}"></div>
+
+<div class="table-wrap table-wrap-narrow">
+    <table>
+        <tr><th>类型</th><td th:text="${activity.category}"></td></tr>
+        <tr><th>开始时间</th><td th:text="${activity.startAt}"></td></tr>
+        <tr><th>地点</th><td th:text="${activity.location}"></td></tr>
+        <tr><th>容量</th><td th:text="${activity.capacity}"></td></tr>
+        <tr><th>已通过 / 待审核</th><td>
+            <span th:text="${statistics.approvedCount}"></span> /
+            <span th:text="${statistics.pendingCount}"></span>
+        </td></tr>
+        <tr><th>剩余名额</th><td th:text="${statistics.remainingCapacity}"></td></tr>
+        <tr><th>报名方式</th><td th:text="${activity.policyType}"></td></tr>
+    </table>
+</div>
+
+<div class="actions" th:if="${registration != null}">
+    <p>我的报名状态：<strong th:text="${registration.status}"></strong></p>
+    <form class="inline" th:if="${registration.active}" th:action="@{/registrations/{id}/cancel(id=${registration.registrationId})}" method="post">
+        <button class="btn-danger" type="submit" onclick="return confirm('确认取消报名？')">取消报名</button>
+    </form>
+</div>
+
+<div class="actions" th:if="${registration == null and open}">
+    <form class="inline" th:action="@{/activities/{id}/registrations(id=${activity.activityId})}" method="post">
+        <button type="submit">报名</button>
+    </form>
+    <p class="muted" th:if="${statistics.remainingCapacity == 0}">当前已满员；直接报名会失败，审核型可提交但批准可能失败。</p>
+</div>
+
+<p class="muted" th:if="${!open}">活动已开始或不可报名。</p>
+
+<p><a href="/activities">返回列表</a></p>
+</body>
+</html>

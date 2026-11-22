@@ -1,0 +1,61 @@
+@startuml
+autonumber
+skinparam shadowing false
+
+actor "校园管理员" as Admin
+participant "RegistrationService" as RegSvc
+database "RegistrationRepository" as RegRepo
+database "ActivityRepository" as ActivityRepo
+participant "RegistrationEventPublisher\n(OutboxEventPublisher)" as Publisher
+database "OutboxRepository" as OutboxRepo
+participant "EventDispatcher" as Dispatcher
+participant "NotificationService\n(InSiteNotificationService)" as Notif
+database "MessageRepository" as MsgRepo
+
+Admin -> RegSvc : reject(registrationId, reason)
+activate RegSvc
+
+group business transaction (REQUIRED)
+  note over RegSvc : BEGIN
+  RegSvc -> RegRepo : findById(registrationId)
+  RegRepo --> RegSvc : registration
+
+  alt registration missing / status != PENDING
+    RegSvc --> Admin : RegistrationNotFound / InvalidRegistrationState
+    note over RegSvc : ROLLBACK
+  else registration PENDING
+    RegSvc -> ActivityRepo : findById(registration.activityId)
+    ActivityRepo --> RegSvc : activity (for title snapshot)
+    RegSvc -> RegRepo : updateStatusIfCurrent(id, PENDING, REJECTED, now)
+    RegRepo --> RegSvc : updated?
+
+    alt true
+      RegSvc -> Publisher : publish(RegistrationRejected, reason)
+      Publisher -> OutboxRepo : save(OutboxEvent PENDING)
+      OutboxRepo --> Publisher : ok
+      note over RegSvc : COMMIT
+      RegSvc --> Admin : registration
+    else false
+      RegSvc --> Admin : ConcurrentStateChange
+      note over RegSvc : ROLLBACK; no event
+    end
+  end
+end
+
+deactivate RegSvc
+
+group post-commit dispatch (no MQ)
+  note over Dispatcher : after commit
+  Dispatcher -> OutboxRepo : findPending()
+  OutboxRepo --> Dispatcher : event
+  Dispatcher -> OutboxRepo : markProcessing(eventId)
+  Dispatcher -> Notif : onEvent(REJECTED)
+  Notif -> MsgRepo : existsBySourceEventId(eventId)
+  MsgRepo --> Notif : false
+  Notif -> MsgRepo : save(Message with reason)
+  MsgRepo --> Notif : ok
+  Notif --> Dispatcher : ok
+  Dispatcher -> OutboxRepo : markSent(eventId)
+end
+
+@enduml
