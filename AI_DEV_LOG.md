@@ -29,5 +29,5 @@
 ## Git 记录
 
 - 仓库：实验/CampusEvent 独立仓库，分支 main。
-- 首次提交：f881f0 baseline-v1: initial CampusEvent implementation。
-- 标签：aseline-v1 待验收/部署确认。
+- 首次提交：ff881f0 baseline-v1: initial CampusEvent implementation。
+- 标签：baseline-v1 待验收/部署确认。

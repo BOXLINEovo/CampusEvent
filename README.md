@@ -88,6 +88,13 @@ src/main/java/com/campusevent/
 
 源文件在 `docs/diagrams/*.puml`；导出的 SVG/PNG 在 `docs/diagrams/export/`。
 
+重新导出时显式指定 UTF-8，避免中文乱码：
+
+```powershell
+java "-Dfile.encoding=UTF-8" -jar plantuml.jar -charset UTF-8 -tsvg -o docs/diagrams/export docs/diagrams/*.puml
+java "-Dfile.encoding=UTF-8" -jar plantuml.jar -charset UTF-8 -tpng -o docs/diagrams/export docs/diagrams/*.puml
+```
+
 - 用例图：`use-case`
 - 类图 V1：`class-diagram-v1`
 - 状态机：`state-registration`
