@@ -23,5 +23,11 @@
 
 - 实际测试执行记录与验收结果（本文件不填写通过/失败）。
 - 实际部署/重启一致性结果（由学生执行）。
-- 同行评审签名、Git commit/tag 记录。
+- 同行评审签名；`baseline-v1` 标签待验收/部署确认。
 - 如需更细的 AI 交互轮次/时长，可按上述事件补充分钟数或 commit 号。
+
+## Git 记录
+
+- 仓库：实验/CampusEvent 独立仓库，分支 main。
+- 首次提交：f881f0 baseline-v1: initial CampusEvent implementation。
+- 标签：aseline-v1 待验收/部署确认。

@@ -116,5 +116,5 @@ src/main/java/com/campusevent/
 ## Git 仓库
 
 - 本地独立仓库，分支 `main`。
-- 首次提交：`baseline-v1: initial CampusEvent implementation`。
+- 首次提交：`ff881f0 baseline-v1: initial CampusEvent implementation`。
 - `baseline-v1` 标签待验收/部署确认后创建；后续变更从该标签切 `change-v2`。
