@@ -1,0 +1,100 @@
+@startuml
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+skinparam shadowing false
+hide empty members
+
+title CampusEvent v2 增量类图（v1 类保持不变）
+
+package "application.service" {
+  class RegistrationService
+  class GradeAwareRegistrationServiceV2 <<@Primary>> {
+    + register(studentId, activityId): RegistrationResult
+  }
+  class GradeRuleAdminServiceV2 {
+    + save(activityId, minGrade, maxGrade): ActivityGradeRuleV2
+    + findAll(): ActivityGradeRuleV2[]
+  }
+}
+
+package "application.port" {
+  interface StudentGradeRepositoryV2 {
+    + findGrade(studentId): OptionalInt
+    + findAll(): StudentSummaryV2[]
+  }
+  interface ActivityGradeRuleRepositoryV2 {
+    + findByActivityId(activityId): Optional<ActivityGradeRuleV2>
+    + save(rule): void
+    + findAll(): ActivityGradeRuleV2[]
+  }
+  interface EmailSenderV2 {
+    + send(message): EmailSendResultV2
+  }
+  interface EmailNotificationRepositoryV2 {
+    + existsBySourceEventIdAndStudentId(eventId, studentId): boolean
+    + save(notification): void
+    + findAll(): EmailNotificationV2[]
+  }
+  interface RegistrationEventObserver
+}
+
+package "domain.model" {
+  class ActivityGradeRuleV2 {
+    + minGrade: int
+    + maxGrade: int
+    + allows(grade): boolean
+  }
+  class EmailNotificationV2 {
+    + sourceEventId: UUID
+    + studentId: UUID
+    + status: EmailNotificationStatusV2
+    + error: String
+  }
+  enum EmailNotificationStatusV2 {
+    SENT
+    FAILED
+  }
+  class StudentSummaryV2 {
+    + studentId: UUID
+    + name: String
+    + grade: int
+  }
+}
+
+package "infrastructure" {
+  class JdbcStudentGradeRepositoryV2
+  class JpaActivityGradeRuleRepositoryV2
+  class JpaEmailNotificationRepositoryV2
+  class MockEmailSenderV2
+  class EmailNotificationObserverV2
+  class EventDispatcher
+}
+
+RegistrationService <|-- GradeAwareRegistrationServiceV2
+GradeAwareRegistrationServiceV2 --> StudentGradeRepositoryV2
+GradeAwareRegistrationServiceV2 --> ActivityGradeRuleRepositoryV2
+GradeAwareRegistrationServiceV2 --> RegistrationService : super.register
+
+StudentGradeRepositoryV2 <|.. JdbcStudentGradeRepositoryV2
+ActivityGradeRuleRepositoryV2 <|.. JpaActivityGradeRuleRepositoryV2
+EmailNotificationRepositoryV2 <|.. JpaEmailNotificationRepositoryV2
+EmailSenderV2 <|.. MockEmailSenderV2
+RegistrationEventObserver <|.. EmailNotificationObserverV2
+EmailNotificationObserverV2 --> EmailSenderV2
+EmailNotificationObserverV2 --> EmailNotificationRepositoryV2
+EventDispatcher --> RegistrationEventObserver
+
+GradeRuleAdminServiceV2 --> ActivityGradeRuleRepositoryV2
+GradeRuleAdminServiceV2 --> RegistrationService
+
+note right of GradeAwareRegistrationServiceV2
+  仅新增文件：原 RegistrationService 源码不变。
+  有年级规则时先校验，再调用 super.register。
+end note
+
+note bottom of EmailNotificationObserverV2
+  EventDispatcher 自动收集新观察者；
+  邮件失败记录 FAILED，报名结果保持不变。
+end note
+
+@enduml

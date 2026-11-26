@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>年级报名演示 - CampusEvent</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<nav>
+    <a href="/">首页</a>
+    <a href="/activities">活动列表</a>
+    <a href="/admin/grade-rules-v2">年级规则</a>
+    <a href="/admin/emails-v2">模拟邮件</a>
+    <a href="/grade-demo-v2">年级报名演示</a>
+</nav>
+
+<h1>年级限定报名演示</h1>
+
+<div class="msg ok" th:if="${message}" th:text="${message}"></div>
+<div class="msg warn" th:if="${warning}" th:text="${warning}"></div>
+<div class="msg err" th:if="${error}" th:text="${error}"></div>
+
+<form class="card" th:action="@{/grade-demo-v2/register}" method="post">
+    <label>
+        学生
+        <select name="studentId" required>
+            <option th:each="student : ${students}"
+                    th:value="${student.studentId}"
+                    th:text="${student.name + '（年级 ' + student.grade + '）'}"></option>
+        </select>
+    </label>
+    <label>
+        活动
+        <select name="activityId" required>
+            <option th:each="row : ${activityRows}"
+                    th:value="${row.activity.activityId}"
+                    th:text="${row.activity.title + (row.rule != null ? '【年级 ' + row.rule.minGrade + '—' + row.rule.maxGrade + '】' : '')}"></option>
+        </select>
+    </label>
+    <button type="submit">报名</button>
+</form>
+
+<p class="muted">年级限定活动仅允许配置范围内的学生报名；其他公共约束仍按原系统执行。</p>
+<p><a href="/admin/grade-rules-v2">配置年级规则</a> · <a href="/admin/emails-v2">查看模拟邮件</a></p>
+</body>
+</html>

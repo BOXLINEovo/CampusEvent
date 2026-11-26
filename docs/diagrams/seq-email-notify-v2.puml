@@ -1,0 +1,47 @@
+@startuml
+autonumber
+skinparam shadowing false
+
+participant "EventDispatcher" as Dispatcher
+database "OutboxRepository" as OutboxRepo
+participant "InSiteNotificationService" as InSite
+database "MessageRepository" as MsgRepo
+participant "EmailNotificationObserverV2" as EmailObserver
+database "EmailNotificationRepositoryV2" as EmailRepo
+participant "MockEmailSenderV2" as Sender
+
+Dispatcher -> OutboxRepo : findPending()
+OutboxRepo --> Dispatcher : event
+Dispatcher -> OutboxRepo : markProcessing(eventId)
+
+Dispatcher -> InSite : onEvent(event)
+InSite -> MsgRepo : existsBySourceEventId(eventId)
+MsgRepo --> InSite : false
+InSite -> MsgRepo : save(Message)
+MsgRepo --> InSite : ok
+
+Dispatcher -> EmailObserver : onEvent(event)
+EmailObserver -> EmailRepo : existsBySourceEventIdAndStudentId(eventId, studentId)
+EmailRepo --> EmailObserver : false
+EmailObserver -> Sender : send(EmailMessageV2)
+
+alt send success
+  Sender --> EmailObserver : success
+  EmailObserver -> EmailRepo : save(SENT)
+else send failure
+  Sender --> EmailObserver : failure / exception
+  EmailObserver -> EmailObserver : log error
+  EmailObserver -> EmailRepo : save(FAILED, error)
+end
+
+EmailRepo --> EmailObserver : ok
+EmailObserver --> Dispatcher : ok
+Dispatcher -> OutboxRepo : markSent(eventId)
+
+note over EmailObserver
+  EmailNotificationObserverV2 由 EventDispatcher
+  的观察者列表自动注入，原站内通知保持原样。
+  唯一键 (source_event_id, student_id) 保证幂等。
+end note
+
+@enduml

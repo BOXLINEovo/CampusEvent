@@ -1,0 +1,47 @@
+@startuml
+autonumber
+skinparam shadowing false
+
+actor "学生" as Student
+participant "GradeDemoControllerV2" as Demo
+participant "GradeAwareRegistrationServiceV2\n(@Primary)" as GradeSvc
+database "ActivityGradeRuleRepositoryV2" as RuleRepo
+database "ActivityRepository" as ActivityRepo
+database "StudentGradeRepositoryV2" as GradeRepo
+participant "RegistrationService\n(original)" as RegSvc
+database "RegistrationRepository" as RegRepo
+participant "RegistrationEventPublisher" as Publisher
+database "OutboxRepository" as OutboxRepo
+
+Student -> Demo : submit(studentId, activityId)
+Demo -> GradeSvc : register(studentId, activityId)
+
+GradeSvc -> RuleRepo : findByActivityId(activityId)
+RuleRepo --> GradeSvc : rule?
+
+alt no grade rule
+  GradeSvc -> RegSvc : super.register(studentId, activityId)
+  RegSvc --> GradeSvc : original result
+else grade-limited direct
+  GradeSvc -> ActivityRepo : findById(activityId)
+  ActivityRepo --> GradeSvc : activity (DIRECT)
+  GradeSvc -> GradeRepo : findGrade(studentId)
+  GradeRepo --> GradeSvc : grade
+
+  alt grade outside range or missing
+    GradeSvc --> Demo : GradeRestrictionExceptionV2
+    Demo --> Student : explicit grade message
+  else grade allowed
+    GradeSvc -> RegSvc : super.register(studentId, activityId)
+    RegSvc -> ActivityRepo : findByIdForUpdate(activityId)
+    RegSvc -> RegRepo : findActiveBy / countApproved
+    RegSvc -> RegRepo : insert(APPROVED)
+    RegSvc -> Publisher : publish(REGISTERED)
+    Publisher -> OutboxRepo : save(PENDING)
+    RegSvc --> GradeSvc : RegistrationResult
+    GradeSvc --> Demo : RegistrationResult
+    Demo --> Student : success
+  end
+end
+
+@enduml

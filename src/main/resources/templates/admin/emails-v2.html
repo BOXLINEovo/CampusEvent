@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>模拟邮件 - CampusEvent</title>
+    <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body>
+<nav>
+    <a href="/">首页</a>
+    <a href="/activities">活动列表</a>
+    <a href="/admin/grade-rules-v2">年级规则</a>
+    <a href="/admin/emails-v2">模拟邮件</a>
+    <a href="/grade-demo-v2">年级报名演示</a>
+</nav>
+
+<h1>模拟邮件记录</h1>
+
+<div class="table-wrap">
+    <table>
+        <thead>
+        <tr>
+            <th>状态</th>
+            <th>收件人</th>
+            <th>主题</th>
+            <th>内容</th>
+            <th>错误</th>
+            <th>发送时间</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="email : ${emails}">
+            <td th:text="${email.status}"></td>
+            <td th:text="${email.recipient}"></td>
+            <td th:text="${email.subject}"></td>
+            <td th:text="${email.content}"></td>
+            <td th:text="${email.error}"></td>
+            <td th:text="${email.sentAt}"></td>
+        </tr>
+        </tbody>
+    </table>
+</div>
+
+<p><a href="/grade-demo-v2">返回年级报名演示</a></p>
+</body>
+</html>
